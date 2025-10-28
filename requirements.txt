@@ -6,3 +6,6 @@ docker
 packaging
 gunicorn
 gevent
+requests
+psutil
+python-dotenv

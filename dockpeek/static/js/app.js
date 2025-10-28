@@ -11,6 +11,7 @@ import { showUpdatesModal, showNoUpdatesModal, showConfirmationModal } from './m
 import { initEventListeners, initLogsButtons } from './modules/events.js';
 import { updateSwarmIndicator, initSwarmIndicator, isSwarmMode } from './modules/swarm-indicator.js';
 import { updateContainerStats } from './modules/container-stats.js';
+import { initServerStats } from './modules/server-stats.js';
 
 const tableRenderer = new TableRenderer('container-row-template', 'container-rows');
 let dragDropHandler = null;
@@ -24,13 +25,14 @@ export function renderTable() {
 document.addEventListener("DOMContentLoaded", () => {
   initCustomTooltips();
   initTheme();
-  
+
   ColumnOrder.load();
   ColumnOrder.reorderMenuItems();
   dragDropHandler = new DragDropHandler('column-list');
-  
+
   initSwarmIndicator();
   fetchContainerData();
   initEventListeners();
   initLogsButtons();
+  initServerStats();
 });

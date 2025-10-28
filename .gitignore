@@ -53,3 +53,6 @@ docker-compose-dev*.yml
 # Cache
 .cache/
 .npm/
+
+# Agents
+/.claude/
