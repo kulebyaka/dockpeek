@@ -678,16 +678,16 @@ def export_json():
 def get_status():
     servers = discover_docker_clients()
     statuses = []
-    
+
     for server in servers:
         if server['status'] != 'active':
             continue
-            
+
         try:
             client = server['client']
             info = client.info()
             is_swarm = info.get('Swarm', {}).get('LocalNodeState', '').lower() == 'active'
-            
+
             if is_swarm:
                 services = client.services.list()
                 tasks = client.api.tasks()
@@ -695,13 +695,13 @@ def get_status():
                 for t in tasks:
                     sid = t['ServiceID']
                     tasks_by_service.setdefault(sid, []).append(t)
-                
+
                 for service in services:
                     service_tasks = tasks_by_service.get(service.id, [])
                     running = sum(1 for t in service_tasks if t['Status']['State'] == 'running')
                     total = len(service_tasks)
                     status = f"running ({running}/{total})" if total else "no-tasks"
-                    
+
                     statuses.append({
                         'server': server['name'],
                         'name': service.name,
@@ -714,7 +714,7 @@ def get_status():
                 for container in containers:
                     container_status, exit_code = get_container_status_with_exit_code(container)
                     start_time = container.attrs.get('State', {}).get('StartedAt', '')
-                    
+
                     statuses.append({
                         'server': server['name'],
                         'name': container.name,
@@ -724,5 +724,53 @@ def get_status():
                     })
         except Exception as e:
             current_app.logger.error(f"Error getting status from {server['name']}: {e}")
-    
+
     return jsonify({'statuses': statuses})
+
+@main_bp.route("/server-stats")
+@conditional_login_required
+def server_stats():
+    """
+    Get system resource statistics for all configured servers.
+
+    This endpoint returns RAM, disk, and CPU statistics for:
+    - Docker hosts (using psutil if available)
+    - Webdock VPS instances (using Webdock API)
+
+    The data is cached for 30 seconds to reduce API calls and overhead.
+    """
+    try:
+        from .server_stats import get_stats_collector, parse_webdock_config_from_env
+        from .docker_utils import discover_docker_clients
+
+        # Get stats collector
+        collector = get_stats_collector(cache_ttl=30)
+
+        # Get Docker host names
+        docker_hosts_data = discover_docker_clients()
+        docker_host_names = [h['name'] for h in docker_hosts_data if h['status'] == 'active']
+
+        # Get Webdock servers from environment
+        webdock_servers = parse_webdock_config_from_env()
+
+        # Collect all stats
+        all_stats = collector.get_all_server_stats(
+            docker_hosts=docker_host_names,
+            webdock_servers=webdock_servers
+        )
+
+        # Convert to JSON-serializable format
+        stats_data = {
+            'stats': [stat.to_dict() for stat in all_stats],
+            'timestamp': datetime.now().isoformat(),
+            'count': len(all_stats)
+        }
+
+        return jsonify(stats_data), 200
+
+    except Exception as e:
+        current_app.logger.error(f"Error fetching server stats: {e}")
+        return jsonify({
+            'error': 'Failed to fetch server statistics',
+            'detail': str(e)
+        }), 500
