@@ -1,0 +1,40 @@
+services:
+  dockpeek:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: dockpeek:latest
+    container_name: dockpeek
+    environment:
+      # Authentication (required)
+      - SECRET_KEY=${SECRET_KEY}
+      - USERNAME=${USERNAME}
+      - PASSWORD=${PASSWORD}
+
+      # Optional: Enable server stats display
+      - SHOW_SERVER_STATS=true
+
+      # --- Docker Host Configuration ---
+      - DOCKER_HOST_NAME=Main Server
+
+      # --- Webdock VPS Integration ---
+      # Configure one or more Webdock VPS instances to monitor
+      # Get your API tokens from: https://app.webdock.io/account/access-tokens
+
+      # Webdock VPS #1
+      - WEBDOCK_API_TOKEN_1=${WEBDOCK_API_TOKEN_1}
+      - WEBDOCK_SERVER_SLUG_1=${WEBDOCK_SERVER_SLUG_1}
+
+      # Webdock VPS #2 (optional)
+      # - WEBDOCK_API_TOKEN_2=another_api_token
+      # - WEBDOCK_SERVER_SLUG_2=another-server-slug
+
+      # Webdock VPS #3 (optional)
+      # - WEBDOCK_API_TOKEN_3=yet_another_token
+      # - WEBDOCK_SERVER_SLUG_3=yet-another-slug
+
+      # Continue the pattern for additional Webdock servers...
+
+    ports:
+      - "3420:8000"
+    restart: unless-stopped

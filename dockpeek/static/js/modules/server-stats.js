@@ -164,6 +164,28 @@ export async function refreshServerStats() {
 }
 
 /**
+ * Manual refresh with loading state
+ */
+export async function manualRefreshServerStats() {
+  const refreshButton = document.getElementById('server-stats-refresh');
+  if (!refreshButton) return;
+
+  // Add loading state
+  refreshButton.classList.add('refreshing');
+  refreshButton.disabled = true;
+
+  try {
+    await refreshServerStats();
+  } finally {
+    // Remove loading state after animation completes
+    setTimeout(() => {
+      refreshButton.classList.remove('refreshing');
+      refreshButton.disabled = false;
+    }, 600);
+  }
+}
+
+/**
  * Initialize server stats polling
  */
 export function initServerStats() {
@@ -173,18 +195,24 @@ export function initServerStats() {
     isStatsVisible = JSON.parse(savedState);
   }
 
-  const statsSection = document.getElementById('server-stats-section');
+  const statsContainer = document.getElementById('server-stats-container');
   const toggleButton = document.getElementById('server-stats-toggle');
+  const refreshButton = document.getElementById('server-stats-refresh');
 
-  if (statsSection && toggleButton) {
+  if (statsContainer && toggleButton) {
     // Apply saved state
     if (!isStatsVisible) {
-      statsSection.classList.add('hidden');
+      statsContainer.classList.add('collapsed');
       toggleButton.classList.add('collapsed');
     }
 
     // Setup toggle button
     toggleButton.addEventListener('click', toggleServerStats);
+  }
+
+  // Setup refresh button
+  if (refreshButton) {
+    refreshButton.addEventListener('click', manualRefreshServerStats);
   }
 
   // Initial fetch
@@ -204,15 +232,15 @@ export function toggleServerStats() {
   isStatsVisible = !isStatsVisible;
   localStorage.setItem('serverStatsVisible', JSON.stringify(isStatsVisible));
 
-  const statsSection = document.getElementById('server-stats-section');
+  const statsContainer = document.getElementById('server-stats-container');
   const toggleButton = document.getElementById('server-stats-toggle');
 
-  if (statsSection && toggleButton) {
+  if (statsContainer && toggleButton) {
     if (isStatsVisible) {
-      statsSection.classList.remove('hidden');
+      statsContainer.classList.remove('collapsed');
       toggleButton.classList.remove('collapsed');
     } else {
-      statsSection.classList.add('hidden');
+      statsContainer.classList.add('collapsed');
       toggleButton.classList.add('collapsed');
     }
   }

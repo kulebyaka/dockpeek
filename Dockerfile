@@ -13,9 +13,9 @@ ENV VERSION=${VERSION} \
 LABEL org.opencontainers.image.created="${BUILD_DATE}" \
       org.opencontainers.image.version="${VERSION}" \
       org.opencontainers.image.revision="${VCS_REF}" \
-      org.opencontainers.image.source="https://github.com/dockpeek/dockpeek" \
-      org.opencontainers.image.url="https://github.com/dockpeek/dockpeek" \
-      org.opencontainers.image.documentation="https://github.com/dockpeek/dockpeek#readme" \
+      org.opencontainers.image.source="https://github.com/kulebyaka/dockpeek" \
+      org.opencontainers.image.url="https://github.com/kulebyaka/dockpeek" \
+      org.opencontainers.image.documentation="https://github.com/kulebyaka/dockpeek#readme" \
       org.opencontainers.image.title="Dockpeek" \
       org.opencontainers.image.description="Quick Access & Easy Updates for Your Docker Containers"
 
