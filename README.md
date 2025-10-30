@@ -1,14 +1,14 @@
 <div align="center">
   
-  <a href="https://github.com/dockpeek/dockpeek">
+  <a href="https://github.com/kulebyaka/dockpeek">
      <img src="dockpeek/static/images/logo_2.svg" alt="dockpeek logo" width="80" height="80"/>
   </a>
   <h1>Dockpeek</h1>
   
-  [![GitHub release (latest by date)](https://img.shields.io/github/v/release/dockpeek/dockpeek?style=flat-square&logo=github)](https://github.com/dockpeek/dockpeek/releases)
-  [![GitHub Repo stars](https://img.shields.io/github/stars/dockpeek/dockpeek?style=flat-square&logo=github)](https://github.com/dockpeek/dockpeek)
-  [![License](https://img.shields.io/github/license/dockpeek/dockpeek?style=flat-square&logo=github)](https://github.com/dockpeek/dockpeek/blob/main/LICENSE)
-  [![Package Registry](https://img.shields.io/badge/package-ghcr.io-blue?style=flat-square&logo=github)](https://github.com/dockpeek/dockpeek/pkgs/container/dockpeek)
+  [![GitHub release (latest by date)](https://img.shields.io/github/v/release/dockpeek/dockpeek?style=flat-square&logo=github)](https://github.com/kulebyaka/dockpeek/releases)
+  [![GitHub Repo stars](https://img.shields.io/github/stars/dockpeek/dockpeek?style=flat-square&logo=github)](https://github.com/kulebyaka/dockpeek)
+  [![License](https://img.shields.io/github/license/dockpeek/dockpeek?style=flat-square&logo=github)](https://github.com/kulebyaka/dockpeek/blob/main/LICENSE)
+  [![Package Registry](https://img.shields.io/badge/package-ghcr.io-blue?style=flat-square&logo=github)](https://github.com/kulebyaka/dockpeek/pkgs/container/dockpeek)
   [![Docker Image Size](https://img.shields.io/docker/image-size/dockpeek/dockpeek/latest?style=flat-square&logo=docker)](https://hub.docker.com/r/dockpeek/dockpeek)
   [![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-donate-yellow?style=flat-square&logo=buymeacoffee)](https://buymeacoffee.com/dockpeek)
 
@@ -522,5 +522,5 @@ networks:
 <div align="center">
   <sub>Made with ❤️ for the self-hosted and open-source community</sub>  
   <br>
-  <a href="https://github.com/dockpeek/dockpeek/releases">Check releases</a>
+  <a href="https://github.com/kulebyaka/dockpeek/releases">Check releases</a>
 </div>
