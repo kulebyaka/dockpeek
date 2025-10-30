@@ -46,8 +46,8 @@ def get_dockpeek_art():
 --  |___|___|___|_|_|  _|___|___|_|_|
 --                  |_|              
 --                                                               
-══ Version: {version}                
-══ https://github.com/dockpeek/dockpeek  
+══ Version: {version}
+════ https://github.com/kulebyaka/dockpeek
 --
 ══ To support dev visit:
 ══ https://buymeacoffee.com/dockpeek
