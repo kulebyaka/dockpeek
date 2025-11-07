@@ -13,7 +13,7 @@ This guide explains how to build and run DockPeek from source.
 ### Clone the repository
 
 ```bash
-git clone https://github.com/kulebyaka/dockpeek.git
+git clone https://github.com/dockpeek/dockpeek.git
 cd dockpeek
 ```
 

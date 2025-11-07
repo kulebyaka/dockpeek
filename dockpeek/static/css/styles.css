@@ -2055,13 +2055,19 @@ body {
 
 /* Server Stats Section */
 .server-stats-section {
-  padding: 2rem 2rem 1.5rem 2rem;
-  border-top: 1px solid #e1e4e8;
-  margin-top: 1rem;
+  max-width: 1200px;
+  margin: 2rem auto;
+  padding: 1.5rem;
+  background-color: #ffffff;
+  border-radius: 0.7rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+    0 4px 6px -2px rgba(0, 0, 0, 0.05);
 }
 
 body.dark-mode .server-stats-section {
-  border-top-color: #30363d;
+  background-color: #0d1117;
+  border: 1px solid rgb(223 223 223 / 6%);
+  box-shadow: 0 4px 6px rgb(0 0 0 / 13%), 0px 7px 16px rgb(0 0 0 / 23%);
 }
 
 .server-stats-header {
@@ -2085,54 +2091,6 @@ body.dark-mode .server-stats-header {
 
 body.dark-mode .server-stats-title {
   color: #e1e4e8;
-}
-
-.server-stats-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.server-stats-refresh {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0.5rem;
-  color: #586069;
-  transition: all 0.2s;
-  border-radius: 0.375rem;
-}
-
-.server-stats-refresh:hover:not(:disabled) {
-  background-color: #f6f8fa;
-  color: #24292e;
-}
-
-.server-stats-refresh:disabled {
-  cursor: not-allowed;
-  opacity: 0.6;
-}
-
-body.dark-mode .server-stats-refresh {
-  color: #8b949e;
-}
-
-body.dark-mode .server-stats-refresh:hover:not(:disabled) {
-  background-color: #21262d;
-  color: #e1e4e8;
-}
-
-.server-stats-refresh.refreshing svg {
-  animation: spin 0.6s linear;
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
 }
 
 .server-stats-toggle {
@@ -2167,17 +2125,8 @@ body.dark-mode .server-stats-toggle:hover {
   transform: rotate(180deg);
 }
 
-.server-stats-container {
-  max-height: 2000px;
-  overflow: hidden;
-  transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out;
-  opacity: 1;
-}
-
-.server-stats-container.collapsed {
-  max-height: 0;
-  opacity: 0;
-  margin-bottom: 0;
+.server-stats-section.hidden .server-stats-container {
+  display: none;
 }
 
 .server-stats-grid {
@@ -2188,7 +2137,7 @@ body.dark-mode .server-stats-toggle:hover {
 }
 
 .server-card {
-  background-color: #fafbfc;
+  background-color: #f6f8fa;
   border-radius: 0.5rem;
   padding: 1.25rem;
   border: 1px solid #e1e4e8;
@@ -2196,18 +2145,16 @@ body.dark-mode .server-stats-toggle:hover {
 }
 
 .server-card:hover {
-  background-color: #f6f8fa;
-  border-color: #d1d5da;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
 body.dark-mode .server-card {
-  background-color: #0d1117;
+  background-color: #161b22;
   border-color: #30363d;
 }
 
 body.dark-mode .server-card:hover {
-  background-color: #161b22;
-  border-color: #40464d;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
 }
 
 .server-card-header {

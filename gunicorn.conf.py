@@ -45,7 +45,7 @@ def get_dockpeek_art():
 --  | . | . |  _| '_| . | -_| -_| '_|
 --  |___|___|___|_|_|  _|___|___|_|_|
 --                  |_|              
---                                                               
+--
 ══ Version: {version}
 ════ https://github.com/kulebyaka/dockpeek
 --
