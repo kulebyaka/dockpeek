@@ -26,11 +26,11 @@ export function renderTable() {
 document.addEventListener("DOMContentLoaded", () => {
   initCustomTooltips();
   initTheme();
-
+  
   ColumnOrder.load();
   ColumnOrder.reorderMenuItems();
   dragDropHandler = new DragDropHandler('column-list');
-
+  
   initSwarmIndicator();
   loadRegistryTemplates();
   fetchContainerData();
