@@ -3,6 +3,7 @@ from datetime import datetime
 from functools import wraps
 
 import docker
+import psutil
 from flask import Blueprint, render_template, jsonify, request, current_app, make_response, Response
 from flask_login import login_required, current_user
 
@@ -48,6 +49,40 @@ def get_registry_templates():
     """Expose CUSTOM_REGISTRY_TEMPLATES from config for frontend use."""
     from flask import current_app, jsonify
     return jsonify(current_app.config.get("CUSTOM_REGISTRY_TEMPLATES", {}))
+
+@main_bp.route("/host-stats")
+@conditional_login_required
+def host_stats():
+    """Get host system statistics (CPU, memory, disk)."""
+    try:
+        # CPU usage percentage
+        cpu_percent = psutil.cpu_percent(interval=0.1)
+
+        # Memory usage
+        memory = psutil.virtual_memory()
+
+        # Disk usage for root partition
+        disk = psutil.disk_usage('/')
+
+        return jsonify({
+            "cpu": {
+                "percent": round(cpu_percent, 1)
+            },
+            "memory": {
+                "total": memory.total,
+                "used": memory.used,
+                "percent": round(memory.percent, 1)
+            },
+            "disk": {
+                "total": disk.total,
+                "used": disk.used,
+                "percent": round(disk.percent, 1)
+            },
+            "timestamp": datetime.now().isoformat()
+        }), 200
+    except Exception as e:
+        current_app.logger.error(f"Error getting host stats: {e}")
+        return jsonify({"error": str(e)}), 500
 
 @main_bp.route("/data")
 @conditional_login_required
@@ -726,51 +761,3 @@ def get_status():
             current_app.logger.error(f"Error getting status from {server['name']}: {e}")
 
     return jsonify({'statuses': statuses})
-
-@main_bp.route("/server-stats")
-@conditional_login_required
-def server_stats():
-    """
-    Get system resource statistics for all configured servers.
-
-    This endpoint returns RAM, disk, and CPU statistics for:
-    - Docker hosts (using psutil if available)
-    - Webdock VPS instances (using Webdock API)
-
-    The data is cached for 30 seconds to reduce API calls and overhead.
-    """
-    try:
-        from .server_stats import get_stats_collector, parse_webdock_config_from_env
-        from .docker_utils import discover_docker_clients
-
-        # Get stats collector
-        collector = get_stats_collector(cache_ttl=30)
-
-        # Get Docker host names
-        docker_hosts_data = discover_docker_clients()
-        docker_host_names = [h['name'] for h in docker_hosts_data if h['status'] == 'active']
-
-        # Get Webdock servers from environment
-        webdock_servers = parse_webdock_config_from_env()
-
-        # Collect all stats
-        all_stats = collector.get_all_server_stats(
-            docker_hosts=docker_host_names,
-            webdock_servers=webdock_servers
-        )
-
-        # Convert to JSON-serializable format
-        stats_data = {
-            'stats': [stat.to_dict() for stat in all_stats],
-            'timestamp': datetime.now().isoformat(),
-            'count': len(all_stats)
-        }
-
-        return jsonify(stats_data), 200
-
-    except Exception as e:
-        current_app.logger.error(f"Error fetching server stats: {e}")
-        return jsonify({
-            'error': 'Failed to fetch server statistics',
-            'detail': str(e)
-        }), 500

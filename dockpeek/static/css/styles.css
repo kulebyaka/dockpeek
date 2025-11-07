@@ -1541,7 +1541,50 @@ body.dark-mode .prune-details-list {
   flex-shrink: 0;
 }
 
+/* Host stats styles */
+.host-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  font-size: 0.875rem;
+}
 
+.host-stat-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.375rem 0.75rem;
+  background-color: #f3f4f6;
+  color: #374151;
+  border-radius: 0.375rem;
+  font-weight: 500;
+}
+
+.host-stat-item svg {
+  flex-shrink: 0;
+}
+
+.host-stat-label {
+  font-weight: 600;
+}
+
+.host-stat-value {
+  font-weight: 500;
+  color: #1f2937;
+}
+
+.dark-mode .host-stats {
+  opacity: 80%;
+}
+
+.dark-mode .host-stat-item {
+  background-color: #374151;
+  color: #d1d5db;
+}
+
+.dark-mode .host-stat-value {
+  color: #e5e7eb;
+}
 
 /* Column visibility classes */
 .column-hidden {
