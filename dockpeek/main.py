@@ -3,6 +3,7 @@ from datetime import datetime
 from functools import wraps
 
 import docker
+import psutil
 from flask import Blueprint, render_template, jsonify, request, current_app, make_response, Response
 from flask_login import login_required, current_user
 
@@ -42,6 +43,40 @@ def health():
         "timestamp": datetime.now().isoformat(),
         "version": current_app.config['APP_VERSION']
     }), 200
+
+@main_bp.route("/host-stats")
+@conditional_login_required
+def host_stats():
+    """Get host system statistics (CPU, memory, disk)."""
+    try:
+        # CPU usage percentage
+        cpu_percent = psutil.cpu_percent(interval=0.1)
+
+        # Memory usage
+        memory = psutil.virtual_memory()
+
+        # Disk usage for root partition
+        disk = psutil.disk_usage('/')
+
+        return jsonify({
+            "cpu": {
+                "percent": round(cpu_percent, 1)
+            },
+            "memory": {
+                "total": memory.total,
+                "used": memory.used,
+                "percent": round(memory.percent, 1)
+            },
+            "disk": {
+                "total": disk.total,
+                "used": disk.used,
+                "percent": round(disk.percent, 1)
+            },
+            "timestamp": datetime.now().isoformat()
+        }), 200
+    except Exception as e:
+        current_app.logger.error(f"Error getting host stats: {e}")
+        return jsonify({"error": str(e)}), 500
 
 @main_bp.route("/data")
 @conditional_login_required
