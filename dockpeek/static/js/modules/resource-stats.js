@@ -46,12 +46,12 @@ export async function updateCellStats(cell, serverName, containerName, type) {
   const stats = await fetchContainerStats(serverName, containerName);
 
   if (!stats) {
-    cell.innerHTML = '<span class="text-gray-400">-</span>';
+    cell.innerHTML = '<span class="text-gray-400 text-sm">N/A</span>';
     return;
   }
 
   if (stats.status === 'not_running') {
-    cell.innerHTML = '<span class="text-gray-400">-</span>';
+    cell.innerHTML = '<span class="text-gray-400 text-sm">-</span>';
     return;
   }
 

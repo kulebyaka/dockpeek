@@ -799,16 +799,22 @@ def get_container_stats():
         memory_usage = memory_stats.get('usage', 0)
         memory_limit = memory_stats.get('limit', 0)
 
-        # Calculate disk usage (sum of all filesystem sizes)
+        # Get disk usage using low-level API with size=True
         disk_usage = 0
-        size_rw = container.attrs.get('SizeRw', 0)  # Writable layer size
-        size_root_fs = container.attrs.get('SizeRootFs', 0)  # Total size
+        try:
+            # Use the low-level API to get size information
+            container_info = client.api.inspect_container(container.id, size=True)
+            size_rw = container_info.get('SizeRw', 0)  # Writable layer size
+            size_root_fs = container_info.get('SizeRootFs', 0)  # Total size
 
-        # Use SizeRootFs if available, otherwise use SizeRw
-        if size_root_fs > 0:
-            disk_usage = size_root_fs
-        elif size_rw > 0:
-            disk_usage = size_rw
+            # Use SizeRootFs if available, otherwise use SizeRw
+            if size_root_fs > 0:
+                disk_usage = size_root_fs
+            elif size_rw > 0:
+                disk_usage = size_rw
+        except Exception as size_error:
+            current_app.logger.warning(f"Could not get size for {container_name}: {size_error}")
+            disk_usage = 0
 
         return jsonify({
             'ram': memory_usage,

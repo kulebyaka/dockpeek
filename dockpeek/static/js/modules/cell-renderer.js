@@ -321,7 +321,8 @@ export function renderDisk(container, cell) {
 }
 
 export function formatBytes(bytes) {
-  if (bytes === null || bytes === undefined || bytes === 0) return '-';
+  if (bytes === null || bytes === undefined) return 'N/A';
+  if (bytes === 0) return '0 B';
   const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
   const i = Math.floor(Math.log(bytes) / Math.log(1024));
   return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
