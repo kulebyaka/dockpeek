@@ -114,7 +114,7 @@ export class TableRenderer {
       this._buildTotalsCell('stack', { classes: ['px-4'] }),
       this._buildTotalsCell('server', { classes: ['px-4'], extraClasses: ['server-column'] }),
       this._buildTotalsCell('ports', { classes: ['px-4'] }),
-      this._buildTotalsCell('traefik', { classes: ['px-4'], extraClasses: ['traefik-column'] }),
+      this._buildTotalsCell('traefik', { classes: ['px-4'], extraClasses: ['traefik-column', 'hidden'] }),
       this._buildTotalsCell('image', { classes: ['px-4'] }),
       this._buildTotalsCell('tags', { classes: ['px-4'] }),
       this._buildTotalsCell('ram', { classes: ['px-4', 'text-right'], dataset: { total: 'ram' } }),
