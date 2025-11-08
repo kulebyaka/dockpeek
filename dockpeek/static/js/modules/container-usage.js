@@ -102,27 +102,41 @@ function setUsageValue(cell, { usage, limit, type, error, display }) {
   }
 }
 
+function updateUsageCell(cell, usage) {
+  if (!cell) return;
+
+  const type = cell.dataset.usageType;
+  if (!type) return;
+
+  if (type === 'ram') {
+    setUsageValue(cell, {
+      usage: usage.memory_usage,
+      limit: usage.memory_limit,
+      type,
+      error: usage.memory_error || usage.error
+    });
+  } else if (type === 'disk') {
+    setUsageValue(cell, {
+      usage: usage.disk_usage,
+      limit: usage.disk_total,
+      type,
+      error: usage.disk_error || usage.error,
+      display: usage.disk_total
+    });
+  }
+}
+
 function updateCellsForKey(key, usage) {
   const selectorKey = escapeForSelector(key);
   document.querySelectorAll(`[data-usage-key="${selectorKey}"]`).forEach(cell => {
-    const type = cell.dataset.usageType;
-    if (!type) return;
-    if (type === 'ram') {
-      setUsageValue(cell, {
-        usage: usage.memory_usage,
-        limit: usage.memory_limit,
-        type,
-        error: usage.memory_error || usage.error
-      });
-    } else if (type === 'disk') {
-      setUsageValue(cell, {
-        usage: usage.disk_usage,
-        limit: usage.disk_total,
-        type,
-        error: usage.disk_error || usage.error,
-        display: usage.disk_total
-      });
-    }
+    updateUsageCell(cell, usage);
+  });
+}
+
+function updateCellsForRow(rowElement, usage) {
+  if (!rowElement) return;
+  rowElement.querySelectorAll('[data-usage-key]').forEach(cell => {
+    updateUsageCell(cell, usage);
   });
 }
 
@@ -293,6 +307,7 @@ export function registerUsageCells(rowElement, container) {
 
   const cached = hasCachedUsage(key) ? getCachedUsage(key) : null;
   if (cached) {
+    updateCellsForRow(rowElement, cached);
     updateCellsForKey(key, cached);
     return;
   }
