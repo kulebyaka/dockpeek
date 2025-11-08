@@ -301,21 +301,27 @@ export function registerUsageCells(rowElement, container) {
   const hasInitialDiskTotal = typeof container.disk_total === 'number';
   const hasInitialDisk = hasInitialDiskUsage || hasInitialDiskTotal;
 
-  if (hasInitialMemory || hasInitialDisk) {
+  // Check if container has error states (data was fetched but resulted in errors)
+  const hasMemoryError = container.memory_error || (container.memory_usage === null && 'memory_usage' in container);
+  const hasDiskError = container.disk_error || (container.disk_usage === null && 'disk_usage' in container);
+  const hasAnyData = hasInitialMemory || hasInitialDisk || hasMemoryError || hasDiskError;
+
+  if (hasAnyData) {
     const initialUsage = {
       memory_usage: hasInitialMemory ? container.memory_usage : null,
       memory_limit: typeof container.memory_limit === 'number' ? container.memory_limit : null,
       disk_usage: hasInitialDiskUsage ? container.disk_usage : null,
       disk_total: hasInitialDiskTotal ? container.disk_total : null,
-      memory_error: null,
-      disk_error: null,
-      error: null
+      memory_error: container.memory_error || null,
+      disk_error: container.disk_error || null,
+      error: container.memory_error || container.disk_error || null
     };
     usageCache.set(key, initialUsage);
     updateCellsForKey(key, initialUsage);
     return;
   }
 
+  // Only show loading and fetch if we truly have no data yet
   if (ramCell) setLoading(ramCell);
   if (diskCell) setLoading(diskCell);
 

@@ -36,7 +36,7 @@ class Config:
         
     LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO")
 
-    DOCKER_CONNECTION_TIMEOUT = float(os.environ.get("DOCKER_CONNECTION_TIMEOUT", "2"))
+    DOCKER_CONNECTION_TIMEOUT = float(os.environ.get("DOCKER_CONNECTION_TIMEOUT", "10"))
     
     PORT = int(os.environ.get("PORT", "8000"))
     
