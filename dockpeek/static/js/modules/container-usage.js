@@ -45,31 +45,46 @@ function setUnavailable(cell, reason) {
   }
 }
 
-function setUsageValue(cell, usage, limit, type, error) {
-  if (typeof usage !== 'number') {
+function isValidNumber(value) {
+  return typeof value === 'number' && !Number.isNaN(value);
+}
+
+function setUsageValue(cell, { usage, limit, type, error, display }) {
+  const displayValue = isValidNumber(display)
+    ? display
+    : isValidNumber(usage)
+      ? usage
+      : null;
+
+  if (!isValidNumber(displayValue)) {
     const reason = error || 'Usage information not available';
     setUnavailable(cell, reason);
     return;
   }
 
-  const usageText = formatBytes(usage) || `${usage} B`;
+  const usageValue = isValidNumber(usage) ? usage : null;
+  const limitValue = isValidNumber(limit) ? limit : null;
+
+  const displayText = formatBytes(displayValue) || `${displayValue} B`;
+  const usageText = usageValue !== null ? (formatBytes(usageValue) || `${usageValue} B`) : null;
   let tooltip = '';
 
-  if (typeof limit === 'number' && limit > 0) {
-    const limitText = formatBytes(limit) || `${limit} B`;
-    const percent = limit ? ((usage / limit) * 100).toFixed(1) : null;
+  if (usageText && limitValue !== null && limitValue > 0) {
+    const limitText = formatBytes(limitValue) || `${limitValue} B`;
+    const percent = limitValue ? ((usageValue / limitValue) * 100).toFixed(1) : null;
     if (type === 'ram') {
       tooltip = percent ? `RAM: ${usageText} / ${limitText} (${percent}%)` : `RAM: ${usageText} / ${limitText}`;
     } else {
       tooltip = percent ? `Disk: ${usageText} / ${limitText} (${percent}%)` : `Disk: ${usageText} / ${limitText}`;
     }
-  } else if (type === 'ram') {
-    tooltip = `RAM: ${usageText}`;
-  } else {
-    tooltip = `Disk: ${usageText}`;
+  } else if (usageText) {
+    tooltip = type === 'ram' ? `RAM: ${usageText}` : `Disk: ${usageText}`;
+  } else if (limitValue !== null) {
+    const limitText = formatBytes(limitValue) || `${limitValue} B`;
+    tooltip = type === 'ram' ? `RAM: ${limitText}` : `Disk: ${limitText}`;
   }
 
-  cell.innerHTML = `<span class="usage-value">${usageText}</span>`;
+  cell.innerHTML = `<span class="usage-value">${displayText}</span>`;
   if (tooltip) {
     cell.setAttribute('data-tooltip', tooltip);
   } else {
@@ -83,9 +98,20 @@ function updateCellsForKey(key, usage) {
     const type = cell.dataset.usageType;
     if (!type) return;
     if (type === 'ram') {
-      setUsageValue(cell, usage.memory_usage, usage.memory_limit, type, usage.memory_error || usage.error);
+      setUsageValue(cell, {
+        usage: usage.memory_usage,
+        limit: usage.memory_limit,
+        type,
+        error: usage.memory_error || usage.error
+      });
     } else if (type === 'disk') {
-      setUsageValue(cell, usage.disk_usage, usage.disk_total, type, usage.disk_error || usage.error);
+      setUsageValue(cell, {
+        usage: usage.disk_usage,
+        limit: usage.disk_total,
+        type,
+        error: usage.disk_error || usage.error,
+        display: usage.disk_total
+      });
     }
   });
 }
@@ -255,14 +281,16 @@ export function registerUsageCells(rowElement, container) {
   }
 
   const hasInitialMemory = typeof container.memory_usage === 'number';
-  const hasInitialDisk = typeof container.disk_usage === 'number';
+  const hasInitialDiskUsage = typeof container.disk_usage === 'number';
+  const hasInitialDiskTotal = typeof container.disk_total === 'number';
+  const hasInitialDisk = hasInitialDiskUsage || hasInitialDiskTotal;
 
   if (hasInitialMemory || hasInitialDisk) {
     const initialUsage = {
       memory_usage: hasInitialMemory ? container.memory_usage : null,
       memory_limit: typeof container.memory_limit === 'number' ? container.memory_limit : null,
-      disk_usage: hasInitialDisk ? container.disk_usage : null,
-      disk_total: typeof container.disk_total === 'number' ? container.disk_total : null,
+      disk_usage: hasInitialDiskUsage ? container.disk_usage : null,
+      disk_total: hasInitialDiskTotal ? container.disk_total : null,
       memory_error: null,
       disk_error: null,
       error: null
