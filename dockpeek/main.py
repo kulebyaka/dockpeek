@@ -1,4 +1,5 @@
 import json
+import os
 from datetime import datetime
 from functools import wraps
 
@@ -51,6 +52,78 @@ def get_registry_templates():
     from flask import current_app, jsonify
     return jsonify(current_app.config.get("CUSTOM_REGISTRY_TEMPLATES", {}))
 
+def _get_container_memory_stats():
+    """
+    Get memory statistics from cgroup if running in a container.
+    Returns tuple (total, used, percent) or None if cgroups not available.
+
+    This handles both cgroup v1 and v2 to correctly report container memory
+    limits instead of host memory when running inside Docker.
+    """
+    try:
+        # Try cgroup v2 first (newer systems)
+        cgroup_v2_limit = '/sys/fs/cgroup/memory.max'
+        cgroup_v2_usage = '/sys/fs/cgroup/memory.current'
+        cgroup_v2_stat = '/sys/fs/cgroup/memory.stat'
+
+        if os.path.exists(cgroup_v2_limit) and os.path.exists(cgroup_v2_usage):
+            with open(cgroup_v2_limit, 'r') as f:
+                limit = f.read().strip()
+                # 'max' means no limit set, fall back to psutil
+                if limit == 'max':
+                    return None
+                total = int(limit)
+
+            with open(cgroup_v2_usage, 'r') as f:
+                used = int(f.read().strip())
+
+            # Subtract cache from usage for more accurate reading
+            if os.path.exists(cgroup_v2_stat):
+                with open(cgroup_v2_stat, 'r') as f:
+                    for line in f:
+                        if line.startswith('inactive_file '):
+                            cache = int(line.split()[1])
+                            used = max(0, used - cache)
+                            break
+
+            percent = (used / total * 100) if total > 0 else 0
+            return (total, used, percent)
+
+        # Try cgroup v1 (older systems)
+        cgroup_v1_limit = '/sys/fs/cgroup/memory/memory.limit_in_bytes'
+        cgroup_v1_usage = '/sys/fs/cgroup/memory/memory.usage_in_bytes'
+        cgroup_v1_stat = '/sys/fs/cgroup/memory/memory.stat'
+
+        if os.path.exists(cgroup_v1_limit) and os.path.exists(cgroup_v1_usage):
+            with open(cgroup_v1_limit, 'r') as f:
+                total = int(f.read().strip())
+                # Very large value means no limit, fall back to psutil
+                if total > (1 << 60):  # More than 1 exabyte = no real limit
+                    return None
+
+            with open(cgroup_v1_usage, 'r') as f:
+                used = int(f.read().strip())
+
+            # Subtract cache from usage
+            if os.path.exists(cgroup_v1_stat):
+                with open(cgroup_v1_stat, 'r') as f:
+                    for line in f:
+                        if line.startswith('total_inactive_file '):
+                            cache = int(line.split()[1])
+                            used = max(0, used - cache)
+                            break
+
+            percent = (used / total * 100) if total > 0 else 0
+            return (total, used, percent)
+
+        # No cgroup limits found
+        return None
+
+    except (IOError, ValueError, OSError):
+        # If we can't read cgroups, return None to fall back to psutil
+        return None
+
+
 @main_bp.route("/host-stats")
 @conditional_login_required
 def host_stats():
@@ -59,8 +132,16 @@ def host_stats():
         # CPU usage percentage
         cpu_percent = psutil.cpu_percent(interval=0.1)
 
-        # Memory usage
-        memory = psutil.virtual_memory()
+        # Memory usage - prefer cgroup stats if available (when running in container)
+        cgroup_memory = _get_container_memory_stats()
+        if cgroup_memory:
+            memory_total, memory_used, memory_percent = cgroup_memory
+        else:
+            # Fall back to psutil for non-containerized environments
+            memory = psutil.virtual_memory()
+            memory_total = memory.total
+            memory_used = memory.used
+            memory_percent = memory.percent
 
         # Disk usage for root partition
         disk = psutil.disk_usage('/')
@@ -70,9 +151,9 @@ def host_stats():
                 "percent": round(cpu_percent, 1)
             },
             "memory": {
-                "total": memory.total,
-                "used": memory.used,
-                "percent": round(memory.percent, 1)
+                "total": memory_total,
+                "used": memory_used,
+                "percent": round(memory_percent, 1)
             },
             "disk": {
                 "total": disk.total,
