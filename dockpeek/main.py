@@ -53,76 +53,208 @@ def get_registry_templates():
     from flask import current_app, jsonify
     return jsonify(current_app.config.get("CUSTOM_REGISTRY_TEMPLATES", {}))
 
-def _get_container_memory_stats():
-    """
-    Get memory statistics from cgroup if running in a container.
-    Returns tuple (total, used, percent) or None if cgroups not available.
-
-    This handles both cgroup v1 and v2 to correctly report container memory
-    limits instead of host memory when running inside Docker.
-    """
+def _read_first_line(path):
     try:
-        # Try cgroup v2 first (newer systems)
-        cgroup_v2_limit = '/sys/fs/cgroup/memory.max'
-        cgroup_v2_usage = '/sys/fs/cgroup/memory.current'
-        cgroup_v2_stat = '/sys/fs/cgroup/memory.stat'
+        with open(path, "r") as fh:
+            return fh.readline().strip()
+    except (OSError, IOError):
+        return None
 
-        if os.path.exists(cgroup_v2_limit) and os.path.exists(cgroup_v2_usage):
-            with open(cgroup_v2_limit, 'r') as f:
-                limit = f.read().strip()
-                # 'max' means no limit set, fall back to psutil
-                if limit == 'max':
-                    return None
-                total = int(limit)
 
-            with open(cgroup_v2_usage, 'r') as f:
-                used = int(f.read().strip())
+def _find_cgroup_mountpoint(fs_type, controller=None):
+    try:
+        with open("/proc/self/mountinfo", "r") as fh:
+            for raw_line in fh:
+                line = raw_line.strip()
+                try:
+                    pre, post = line.split(" - ", 1)
+                except ValueError:
+                    continue
+                mount_point = pre.split()[4]
+                post_fields = post.split()
+                if not post_fields:
+                    continue
+                if post_fields[0] != fs_type:
+                    continue
+                if controller:
+                    super_opts = post_fields[2] if len(post_fields) > 2 else ""
+                    controllers = set(opt for opt in super_opts.split(',') if opt)
+                    if controller not in controllers:
+                        continue
+                return mount_point
+    except (OSError, IOError):
+        return None
+    return None
 
-            # Subtract cache from usage for more accurate reading
-            if os.path.exists(cgroup_v2_stat):
-                with open(cgroup_v2_stat, 'r') as f:
-                    for line in f:
-                        if line.startswith('inactive_file '):
+
+def _get_cgroup_relative_path(controllers):
+    try:
+        with open("/proc/self/cgroup", "r") as fh:
+            for raw_line in fh:
+                line = raw_line.strip()
+                if not line:
+                    continue
+                parts = line.split(":")
+                if len(parts) != 3:
+                    continue
+                subsystems = parts[1].split(',') if parts[1] else []
+                if controllers is None:
+                    if parts[0] == "0":
+                        return parts[2] or "/"
+                elif any(ctrl in subsystems for ctrl in controllers):
+                    return parts[2] or "/"
+    except (OSError, IOError):
+        return None
+    return None
+
+
+def _get_cgroup_memory_stats():
+    try:
+        if os.path.exists("/sys/fs/cgroup/cgroup.controllers"):
+            # cgroup v2
+            mount_point = _find_cgroup_mountpoint("cgroup2") or "/sys/fs/cgroup"
+            relative_path = _get_cgroup_relative_path(None)
+            if relative_path is None:
+                return None
+            base_path = os.path.normpath(os.path.join(mount_point, relative_path.lstrip('/')))
+            limit_path = os.path.join(base_path, "memory.max")
+            usage_path = os.path.join(base_path, "memory.current")
+            stat_path = os.path.join(base_path, "memory.stat")
+
+            if not (os.path.exists(limit_path) and os.path.exists(usage_path)):
+                return None
+
+            limit_raw = _read_first_line(limit_path)
+            if limit_raw in (None, "max"):
+                return None
+            total = int(limit_raw)
+
+            usage_raw = _read_first_line(usage_path)
+            if usage_raw is None:
+                return None
+            used = int(usage_raw)
+
+            if os.path.exists(stat_path):
+                with open(stat_path, "r") as fh:
+                    for line in fh:
+                        if line.startswith("inactive_file "):
                             cache = int(line.split()[1])
                             used = max(0, used - cache)
                             break
 
-            percent = (used / total * 100) if total > 0 else 0
-            return (total, used, percent)
+            percent = (used / total * 100) if total else 0
+            return total, used, percent
 
-        # Try cgroup v1 (older systems)
-        cgroup_v1_limit = '/sys/fs/cgroup/memory/memory.limit_in_bytes'
-        cgroup_v1_usage = '/sys/fs/cgroup/memory/memory.usage_in_bytes'
-        cgroup_v1_stat = '/sys/fs/cgroup/memory/memory.stat'
+        # cgroup v1
+        mount_point = _find_cgroup_mountpoint("cgroup", "memory")
+        if not mount_point:
+            return None
+        relative_path = _get_cgroup_relative_path({"memory"})
+        if relative_path is None:
+            return None
+        base_path = os.path.normpath(os.path.join(mount_point, relative_path.lstrip('/')))
+        limit_path = os.path.join(base_path, "memory.limit_in_bytes")
+        usage_path = os.path.join(base_path, "memory.usage_in_bytes")
+        stat_path = os.path.join(base_path, "memory.stat")
 
-        if os.path.exists(cgroup_v1_limit) and os.path.exists(cgroup_v1_usage):
-            with open(cgroup_v1_limit, 'r') as f:
-                total = int(f.read().strip())
-                # Very large value means no limit, fall back to psutil
-                if total > (1 << 60):  # More than 1 exabyte = no real limit
-                    return None
+        if not (os.path.exists(limit_path) and os.path.exists(usage_path)):
+            return None
 
-            with open(cgroup_v1_usage, 'r') as f:
-                used = int(f.read().strip())
+        total = int(_read_first_line(limit_path))
+        if total > (1 << 60):
+            return None
 
-            # Subtract cache from usage
-            if os.path.exists(cgroup_v1_stat):
-                with open(cgroup_v1_stat, 'r') as f:
-                    for line in f:
-                        if line.startswith('total_inactive_file '):
-                            cache = int(line.split()[1])
-                            used = max(0, used - cache)
-                            break
+        used = int(_read_first_line(usage_path))
 
-            percent = (used / total * 100) if total > 0 else 0
-            return (total, used, percent)
+        if os.path.exists(stat_path):
+            with open(stat_path, "r") as fh:
+                for line in fh:
+                    if line.startswith("total_inactive_file "):
+                        cache = int(line.split()[1])
+                        used = max(0, used - cache)
+                        break
 
-        # No cgroup limits found
+        percent = (used / total * 100) if total else 0
+        return total, used, percent
+    except (OSError, IOError, ValueError):
         return None
 
-    except (IOError, ValueError, OSError):
-        # If we can't read cgroups, return None to fall back to psutil
+    return None
+
+
+def _get_openvz_memory_stats():
+    beancounters_path = "/proc/user_beancounters"
+    if not os.path.exists(beancounters_path):
         return None
+
+    try:
+        with open(beancounters_path, "r") as fh:
+            lines = fh.readlines()
+    except (OSError, IOError):
+        return None
+
+    if len(lines) < 3:
+        return None
+
+    metrics = {}
+    for line in lines[2:]:
+        parts = line.split()
+        if len(parts) < 6:
+            continue
+        resource = parts[1]
+        try:
+            metrics[resource] = {
+                "held": int(parts[2]),
+                "maxheld": int(parts[3]),
+                "barrier": parts[4],
+                "limit": parts[5],
+            }
+        except ValueError:
+            continue
+
+    page_size = os.sysconf("SC_PAGE_SIZE") if hasattr(os, "sysconf") else 4096
+
+    def _limit_to_bytes(entry):
+        for key in ("barrier", "limit"):
+            value = entry.get(key)
+            if value and value.isdigit():
+                return int(value) * page_size
+        return None
+
+    total = None
+    used = None
+
+    if "oomguarpages" in metrics:
+        total = _limit_to_bytes(metrics["oomguarpages"])
+        used = metrics["oomguarpages"]["held"] * page_size
+
+    if (total is None or total == 0) and "privvmpages" in metrics:
+        total = _limit_to_bytes(metrics["privvmpages"])
+        used = metrics["privvmpages"]["held"] * page_size
+
+    if "physpages" in metrics:
+        used = metrics["physpages"]["held"] * page_size
+        if total is None:
+            total = _limit_to_bytes(metrics["physpages"])
+
+    if not total:
+        return None
+
+    if used is None:
+        used = 0
+
+    percent = (used / total * 100) if total else 0
+    return total, used, percent
+
+
+def _get_memory_stats():
+    for getter in (_get_cgroup_memory_stats, _get_openvz_memory_stats):
+        stats = getter()
+        if stats:
+            return stats
+
+    memory = psutil.virtual_memory()
+    return memory.total, memory.used, memory.percent
 
 
 @main_bp.route("/host-stats")
@@ -130,21 +262,8 @@ def _get_container_memory_stats():
 def host_stats():
     """Get host system statistics (CPU, memory, disk)."""
     try:
-        # CPU usage percentage
         cpu_percent = psutil.cpu_percent(interval=0.1)
-
-        # Memory usage - prefer cgroup stats if available (when running in container)
-        cgroup_memory = _get_container_memory_stats()
-        if cgroup_memory:
-            memory_total, memory_used, memory_percent = cgroup_memory
-        else:
-            # Fall back to psutil for non-containerized environments
-            memory = psutil.virtual_memory()
-            memory_total = memory.total
-            memory_used = memory.used
-            memory_percent = memory.percent
-
-        # Disk usage for root partition
+        memory_total, memory_used, memory_percent = _get_memory_stats()
         disk = psutil.disk_usage('/')
 
         return jsonify({
