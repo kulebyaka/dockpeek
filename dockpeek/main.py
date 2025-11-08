@@ -130,18 +130,39 @@ def _collect_container_usage(client, container_id=None, container_name=None):
     except Exception as exc:  # pragma: no cover - depends on Docker engine
         result["memory_error"] = str(exc)
 
+    inspect_data = None
     try:
-        inspect_data = client.api.inspect_container(container.id, size=True)
-        result["disk_usage"] = inspect_data.get('SizeRw')
-        result["disk_total"] = inspect_data.get('SizeRootFs')
+        inspect_data = _inspect_container_with_size(client.api, container.id)
     except Exception as exc:  # pragma: no cover - depends on Docker engine
         result["disk_error"] = str(exc)
+        try:  # fall back to the default inspect call without size data
+            inspect_data = client.api.inspect_container(container.id)
+        except Exception:
+            inspect_data = None
+
+    if inspect_data:
+        result["disk_usage"] = inspect_data.get('SizeRw')
+        result["disk_total"] = inspect_data.get('SizeRootFs')
 
     return result
 
 
 def _make_usage_key(server_name, identifier):
     return f"{server_name}:{identifier}"
+
+
+def _inspect_container_with_size(api_client, container_id):
+    """Return inspect data including size information.
+
+    docker-py 7.x removed the ``size`` argument from ``inspect_container``.
+    To keep compatibility with newer versions we manually craft the request
+    with the ``size=1`` query parameter.  Older daemons still understand the
+    parameter, and this avoids relying on a non-existent function argument.
+    """
+
+    url = api_client._url("/containers/{0}/json", container_id)
+    response = api_client._get(url, params={"size": 1})
+    return api_client._result(response, True)
 
 
 @main_bp.route("/container-stats", methods=["POST"])
