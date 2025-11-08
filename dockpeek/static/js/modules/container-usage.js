@@ -301,9 +301,9 @@ export function registerUsageCells(rowElement, container) {
   const hasInitialDiskTotal = typeof container.disk_total === 'number';
   const hasInitialDisk = hasInitialDiskUsage || hasInitialDiskTotal;
 
-  // Check if container has error states (data was fetched but resulted in errors)
-  const hasMemoryError = container.memory_error || (container.memory_usage === null && 'memory_usage' in container);
-  const hasDiskError = container.disk_error || (container.disk_usage === null && 'disk_usage' in container);
+  // Check if container has error states (actual error messages, not just null values)
+  const hasMemoryError = Boolean(container.memory_error);
+  const hasDiskError = Boolean(container.disk_error);
   const hasAnyData = hasInitialMemory || hasInitialDisk || hasMemoryError || hasDiskError;
 
   if (hasAnyData) {
