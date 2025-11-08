@@ -1,4 +1,4 @@
-import { state } from './state.js';
+import { state, DEFAULT_COLUMN_ORDER } from './state.js';
 import { updateFirstAndLastVisibleColumns } from './column-visibility.js';
 
 export function updateFromDOM() {
@@ -27,8 +27,17 @@ export function save() {
 export function load() {
   const saved = localStorage.getItem('columnOrder');
   if (saved) {
-    state.columnOrder.splice(0, state.columnOrder.length, ...JSON.parse(saved));
+    try {
+      const parsed = JSON.parse(saved);
+      const merged = [...parsed, ...DEFAULT_COLUMN_ORDER.filter(column => !parsed.includes(column))];
+      state.columnOrder.splice(0, state.columnOrder.length, ...merged);
+      return;
+    } catch (error) {
+      console.warn('Failed to parse saved column order, resetting to default', error);
+    }
   }
+
+  state.columnOrder.splice(0, state.columnOrder.length, ...DEFAULT_COLUMN_ORDER);
 }
 
 export function updateTableOrder() {

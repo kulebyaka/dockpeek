@@ -4,6 +4,7 @@ from functools import wraps
 
 import docker
 import psutil
+from docker.errors import NotFound
 from flask import Blueprint, render_template, jsonify, request, current_app, make_response, Response
 from flask_login import login_required, current_user
 
@@ -83,6 +84,147 @@ def host_stats():
     except Exception as e:
         current_app.logger.error(f"Error getting host stats: {e}")
         return jsonify({"error": str(e)}), 500
+
+
+def _collect_container_usage(client, container_id=None, container_name=None):
+    result = {
+        "memory_usage": None,
+        "memory_limit": None,
+        "memory_error": None,
+        "disk_usage": None,
+        "disk_total": None,
+        "disk_error": None,
+        "error": None
+    }
+
+    container = None
+    lookup_values = [value for value in (container_id, container_name) if value]
+
+    if not lookup_values:
+        result["error"] = "missing-identifier"
+        return result
+
+    for lookup in lookup_values:
+        try:
+            container = client.containers.get(lookup)
+            break
+        except NotFound:
+            continue
+        except Exception as exc:  # pragma: no cover - defensive logging
+            result["error"] = str(exc)
+            return result
+
+    if container is None:
+        result["error"] = "not-found"
+        return result
+
+    try:
+        stats = container.stats(stream=False)
+        memory_stats = stats.get('memory_stats', {})
+        usage = memory_stats.get('usage')
+        cache_value = memory_stats.get('stats', {}).get('cache')
+        if usage is not None and cache_value is not None:
+            usage = max(0, usage - cache_value)
+        result["memory_usage"] = usage
+        result["memory_limit"] = memory_stats.get('limit')
+    except Exception as exc:  # pragma: no cover - depends on Docker engine
+        result["memory_error"] = str(exc)
+
+    inspect_data = None
+    try:
+        inspect_data = _inspect_container_with_size(client.api, container.id)
+    except Exception as exc:  # pragma: no cover - depends on Docker engine
+        result["disk_error"] = str(exc)
+        try:  # fall back to the default inspect call without size data
+            inspect_data = client.api.inspect_container(container.id)
+        except Exception:
+            inspect_data = None
+
+    if inspect_data:
+        result["disk_usage"] = inspect_data.get('SizeRw')
+        result["disk_total"] = inspect_data.get('SizeRootFs')
+
+    return result
+
+
+def _make_usage_key(server_name, identifier):
+    return f"{server_name}:{identifier}"
+
+
+def _inspect_container_with_size(api_client, container_id):
+    """Return inspect data including size information.
+
+    docker-py 7.x removed the ``size`` argument from ``inspect_container``.
+    To keep compatibility with newer versions we manually craft the request
+    with the ``size=1`` query parameter.  Older daemons still understand the
+    parameter, and this avoids relying on a non-existent function argument.
+    """
+
+    url = api_client._url("/containers/{0}/json", container_id)
+    response = api_client._get(url, params={"size": 1})
+    return api_client._result(response, True)
+
+
+@main_bp.route("/container-stats", methods=["POST"])
+@conditional_login_required
+def container_stats():
+    payload = request.get_json(silent=True) or {}
+    requested_containers = payload.get('containers')
+
+    if not isinstance(requested_containers, list) or not requested_containers:
+        return jsonify({"error": "No containers specified"}), 400
+
+    servers = discover_docker_clients()
+    active_servers = {s['name']: s for s in servers if s['status'] == 'active'}
+
+    stats = {}
+
+    for item in requested_containers:
+        server_name = item.get('server')
+        container_id = item.get('container_id')
+        container_name = item.get('container_name')
+
+        if not server_name or not (container_id or container_name):
+            continue
+
+        key_identifier = container_id or container_name
+        key = _make_usage_key(server_name, key_identifier)
+
+        server_info = active_servers.get(server_name)
+        if not server_info:
+            stats[key] = {
+                "memory_usage": None,
+                "memory_limit": None,
+                "memory_error": "server-inactive",
+                "disk_usage": None,
+                "disk_total": None,
+                "disk_error": "server-inactive",
+                "error": "server-inactive"
+            }
+            continue
+
+        try:
+            usage = _collect_container_usage(
+                server_info['client'],
+                container_id=container_id,
+                container_name=container_name
+            )
+        except Exception as exc:  # pragma: no cover - depends on Docker engine
+            current_app.logger.error(f"Failed to collect stats for {server_name}:{key_identifier}: {exc}")
+            usage = {
+                "memory_usage": None,
+                "memory_limit": None,
+                "memory_error": str(exc),
+                "disk_usage": None,
+                "disk_total": None,
+                "disk_error": str(exc),
+                "error": str(exc)
+            }
+
+        stats[key] = usage
+
+    return jsonify({"stats": stats})
+
 
 @main_bp.route("/data")
 @conditional_login_required

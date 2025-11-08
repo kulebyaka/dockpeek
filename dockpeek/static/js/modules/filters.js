@@ -337,6 +337,20 @@ export function updateDisplay() {
       };
       valA = getTraefikRoutes(a);
       valB = getTraefikRoutes(b);
+    } else if (state.currentSortColumn === "ram") {
+      valA = typeof a.memory_usage === 'number'
+        ? a.memory_usage
+        : (state.currentSortDirection === "asc" ? Number.POSITIVE_INFINITY : Number.NEGATIVE_INFINITY);
+      valB = typeof b.memory_usage === 'number'
+        ? b.memory_usage
+        : (state.currentSortDirection === "asc" ? Number.POSITIVE_INFINITY : Number.NEGATIVE_INFINITY);
+    } else if (state.currentSortColumn === "disk") {
+      valA = typeof a.disk_usage === 'number'
+        ? a.disk_usage
+        : (state.currentSortDirection === "asc" ? Number.POSITIVE_INFINITY : Number.NEGATIVE_INFINITY);
+      valB = typeof b.disk_usage === 'number'
+        ? b.disk_usage
+        : (state.currentSortDirection === "asc" ? Number.POSITIVE_INFINITY : Number.NEGATIVE_INFINITY);
     } else if (typeof valA === "string" && typeof valB === "string") {
       valA = valA.toLowerCase();
       valB = valB.toLowerCase();

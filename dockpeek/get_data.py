@@ -212,6 +212,7 @@ def process_swarm_service(service, tasks_by_service, client, server_name, public
             'server': server_name,
             'name': spec.get('Name', service.name),
             'container_id': service.id[:12],
+            'container_id_full': service.id,
             'status': status,
             'exit_code': None,
             'image': image_name,
@@ -222,7 +223,12 @@ def process_swarm_service(service, tasks_by_service, client, server_name, public
             'traefik_routes': traefik_routes,
             'tags': labels_data['tags'],
             'update_available': update_available,
-            'port_range_grouping': port_range_grouping
+            'port_range_grouping': port_range_grouping,
+            'is_swarm': True,
+            'memory_usage': None,
+            'memory_limit': None,
+            'disk_usage': None,
+            'disk_total': None
         }
 
         return container_info
@@ -297,6 +303,7 @@ def process_container(container, client, server_name, public_hostname, is_docker
             'server': server_name,
             'name': container.name,
             'container_id': container.id[:12],
+            'container_id_full': container.id,
             'status': container_status,
             'started_at': start_time,
             'exit_code': exit_code,
@@ -308,7 +315,12 @@ def process_container(container, client, server_name, public_hostname, is_docker
             'traefik_routes': traefik_routes,
             'tags': labels_data['tags'],
             'update_available': update_available,
-            'port_range_grouping': port_range_grouping
+            'port_range_grouping': port_range_grouping,
+            'is_swarm': False,
+            'memory_usage': None,
+            'memory_limit': None,
+            'disk_usage': None,
+            'disk_total': None
         }
 
         return container_info
