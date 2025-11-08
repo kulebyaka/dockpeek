@@ -1,5 +1,6 @@
 import json
 import os
+from contextlib import contextmanager
 from datetime import datetime
 from functools import wraps
 
@@ -167,6 +168,33 @@ def host_stats():
         return jsonify({"error": str(e)}), 500
 
 
+@contextmanager
+def _temporary_api_timeout(client, minimum_timeout):
+    api = getattr(client, 'api', None)
+    if not api or minimum_timeout is None:
+        yield
+        return
+
+    try:
+        original_timeout = getattr(api, 'timeout', None)
+    except Exception:  # pragma: no cover - defensive
+        original_timeout = None
+
+    should_restore = False
+
+    try:
+        if minimum_timeout and (original_timeout is None or original_timeout < minimum_timeout):
+            api.timeout = minimum_timeout
+            should_restore = True
+        yield
+    finally:
+        if should_restore:
+            try:
+                api.timeout = original_timeout
+            except Exception:  # pragma: no cover - defensive
+                pass
+
+
 def _collect_container_usage(client, container_id=None, container_name=None):
     result = {
         "memory_usage": None,
@@ -199,31 +227,38 @@ def _collect_container_usage(client, container_id=None, container_name=None):
         result["error"] = "not-found"
         return result
 
+    usage_timeout = current_app.config.get('DOCKER_USAGE_TIMEOUT', 10.0)
     try:
-        stats = container.stats(stream=False)
-        memory_stats = stats.get('memory_stats', {})
-        usage = memory_stats.get('usage')
-        cache_value = memory_stats.get('stats', {}).get('cache')
-        if usage is not None and cache_value is not None:
-            usage = max(0, usage - cache_value)
-        result["memory_usage"] = usage
-        result["memory_limit"] = memory_stats.get('limit')
-    except Exception as exc:  # pragma: no cover - depends on Docker engine
-        result["memory_error"] = str(exc)
+        usage_timeout = float(usage_timeout)
+    except (TypeError, ValueError):  # pragma: no cover - defensive
+        usage_timeout = 10.0
 
-    inspect_data = None
-    try:
-        inspect_data = _inspect_container_with_size(client.api, container.id)
-    except Exception as exc:  # pragma: no cover - depends on Docker engine
-        result["disk_error"] = str(exc)
-        try:  # fall back to the default inspect call without size data
-            inspect_data = client.api.inspect_container(container.id)
-        except Exception:
-            inspect_data = None
+    with _temporary_api_timeout(client, usage_timeout):
+        try:
+            stats = container.stats(stream=False)
+            memory_stats = stats.get('memory_stats', {})
+            usage = memory_stats.get('usage')
+            cache_value = memory_stats.get('stats', {}).get('cache')
+            if usage is not None and cache_value is not None:
+                usage = max(0, usage - cache_value)
+            result["memory_usage"] = usage
+            result["memory_limit"] = memory_stats.get('limit')
+        except Exception as exc:  # pragma: no cover - depends on Docker engine
+            result["memory_error"] = str(exc)
 
-    if inspect_data:
-        result["disk_usage"] = inspect_data.get('SizeRw')
-        result["disk_total"] = inspect_data.get('SizeRootFs')
+        inspect_data = None
+        try:
+            inspect_data = _inspect_container_with_size(client.api, container.id)
+        except Exception as exc:  # pragma: no cover - depends on Docker engine
+            result["disk_error"] = str(exc)
+            try:  # fall back to the default inspect call without size data
+                inspect_data = client.api.inspect_container(container.id)
+            except Exception:
+                inspect_data = None
+
+        if inspect_data:
+            result["disk_usage"] = inspect_data.get('SizeRw')
+            result["disk_total"] = inspect_data.get('SizeRootFs')
 
     return result
 

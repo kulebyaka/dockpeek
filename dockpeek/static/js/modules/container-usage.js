@@ -222,6 +222,7 @@ async function executeFetch() {
         error: error.message
       };
       usageCache.set(key, fallback);
+      updateStateUsage(key, fallback);
       updateCellsForKey(key, fallback);
     });
     scheduleTotalsUpdate();
