@@ -2095,3 +2095,19 @@ body {
 .ansi-blink {
   animation: ansi-blink 1s linear infinite;
 }
+
+/* Loading spinner for RAM and Disk columns */
+@keyframes spinner-rotate {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.loading-spinner {
+  display: inline-block;
+  animation: spinner-rotate 1s linear infinite;
+  color: #6b7280;
+}

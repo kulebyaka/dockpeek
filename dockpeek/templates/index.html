@@ -185,6 +185,28 @@
                 </label>
               </div>
 
+              <div class="column-menu-item draggable" data-column="ram">
+                <div class="drag-handle">⋮⋮</div>
+                <label for="toggle-ram">
+                  <span>RAM</span>
+                  <div class="toggle-switch">
+                    <input type="checkbox" id="toggle-ram" checked>
+                    <span class="slider"></span>
+                  </div>
+                </label>
+              </div>
+
+              <div class="column-menu-item draggable" data-column="disk">
+                <div class="drag-handle">⋮⋮</div>
+                <label for="toggle-disk">
+                  <span>Disk</span>
+                  <div class="toggle-switch">
+                    <input type="checkbox" id="toggle-disk" checked>
+                    <span class="slider"></span>
+                  </div>
+                </label>
+              </div>
+
               <div class="column-menu-item draggable" data-column="status">
                 <div class="drag-handle">⋮⋮</div>
                 <label for="toggle-status">
@@ -264,6 +286,16 @@
               class="table-cell-tags py-3 px-4 text-left text-sm font-semibold text-gray-700 border-b border-gray-200 tags-column"
               data-sort-column="tags">
               Tags
+            </th>
+            <th
+              class="table-cell-ram py-3 px-4 text-left text-sm font-semibold text-gray-700 border-b border-gray-200 sortable-header"
+              data-sort-column="ram">
+              RAM
+            </th>
+            <th
+              class="table-cell-disk py-3 px-4 text-left text-sm font-semibold text-gray-700 border-b border-gray-200 sortable-header"
+              data-sort-column="disk">
+              Disk
             </th>
             <th
               class="table-cell-status py-3 px-4 text-left text-sm font-semibold text-gray-700 border-b border-gray-200 sortable-header"
@@ -430,6 +462,10 @@
         </div>
       </td>
       <td class="py-3 px-4 border-b border-gray-200 table-cell-tags" data-content="tags">
+      </td>
+      <td class="py-3 px-4 border-b border-gray-200 table-cell-ram" data-content="ram">
+      </td>
+      <td class="py-3 px-4 border-b border-gray-200 table-cell-disk" data-content="disk">
       </td>
       <td class="py-3 px-4 border-b border-gray-200 table-cell-status" data-content="status">
       </td>

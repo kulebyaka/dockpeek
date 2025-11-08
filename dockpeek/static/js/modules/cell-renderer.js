@@ -287,12 +287,12 @@ export function renderLogs(container, cell) {
   logsButton.className = 'logs-button text-gray-500 hover:text-blue-600 p-1 rounded transition-colors';
   logsButton.setAttribute('data-server', container.server);
   logsButton.setAttribute('data-container', container.name);
-  
-  const tooltipText = container.name.length > 50 
-    ? container.name.substring(0, 47) + '...' 
+
+  const tooltipText = container.name.length > 50
+    ? container.name.substring(0, 47) + '...'
     : container.name;
   logsButton.setAttribute('data-tooltip', tooltipText);
-  
+
   logsButton.setAttribute('aria-label', 'View container logs');
   logsButton.innerHTML = `
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
@@ -304,4 +304,25 @@ export function renderLogs(container, cell) {
     </svg>
   `;
   cell.appendChild(logsButton);
+}
+
+export function renderRam(container, cell) {
+  cell.innerHTML = '<span class="loading-spinner">⟳</span>';
+  cell.classList.add('text-gray-400', 'text-sm');
+  cell.setAttribute('data-server', container.server);
+  cell.setAttribute('data-container', container.name);
+}
+
+export function renderDisk(container, cell) {
+  cell.innerHTML = '<span class="loading-spinner">⟳</span>';
+  cell.classList.add('text-gray-400', 'text-sm');
+  cell.setAttribute('data-server', container.server);
+  cell.setAttribute('data-container', container.name);
+}
+
+export function formatBytes(bytes) {
+  if (bytes === null || bytes === undefined || bytes === 0) return '-';
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(1024));
+  return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
 }

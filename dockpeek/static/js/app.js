@@ -13,6 +13,7 @@ import { updateSwarmIndicator, initSwarmIndicator, isSwarmMode } from './modules
 import { updateContainerStats } from './modules/container-stats.js';
 import { loadRegistryTemplates } from './modules/registry-urls.js';
 import { startHostStatsRefresh } from './modules/host-stats.js';
+import { loadAllContainerStats } from './modules/resource-stats.js';
 
 const tableRenderer = new TableRenderer('container-row-template', 'container-rows');
 let dragDropHandler = null;
@@ -20,6 +21,8 @@ let dragDropHandler = null;
 export function renderTable() {
   tableRenderer.render(state.filteredAndSortedContainers);
   updateContainerStats(state.filteredAndSortedContainers);
+  // Load resource stats asynchronously after table is rendered
+  loadAllContainerStats();
 }
 
 

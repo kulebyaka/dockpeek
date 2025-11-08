@@ -761,3 +761,64 @@ def get_status():
             current_app.logger.error(f"Error getting status from {server['name']}: {e}")
 
     return jsonify({'statuses': statuses})
+
+@main_bp.route("/container-stats", methods=["POST"])
+@conditional_login_required
+def get_container_stats():
+    """Get resource usage stats (RAM and disk) for a specific container."""
+    request_data = request.get_json() or {}
+    server_name = request_data.get('server_name')
+    container_name = request_data.get('container_name')
+
+    if not server_name or not container_name:
+        return jsonify({"error": "Missing server_name or container_name"}), 400
+
+    servers = discover_docker_clients()
+    server = next((s for s in servers if s['name'] == server_name and s['status'] == 'active'), None)
+
+    if not server:
+        return jsonify({"error": f"Server {server_name} not found or inactive"}), 404
+
+    try:
+        client = server['client']
+        container = client.containers.get(container_name)
+
+        # Check if container is running
+        if container.status != 'running':
+            return jsonify({
+                'ram': None,
+                'disk': None,
+                'status': 'not_running'
+            }), 200
+
+        # Get memory stats
+        stats = container.stats(stream=False)
+
+        # Calculate memory usage
+        memory_stats = stats.get('memory_stats', {})
+        memory_usage = memory_stats.get('usage', 0)
+        memory_limit = memory_stats.get('limit', 0)
+
+        # Calculate disk usage (sum of all filesystem sizes)
+        disk_usage = 0
+        size_rw = container.attrs.get('SizeRw', 0)  # Writable layer size
+        size_root_fs = container.attrs.get('SizeRootFs', 0)  # Total size
+
+        # Use SizeRootFs if available, otherwise use SizeRw
+        if size_root_fs > 0:
+            disk_usage = size_root_fs
+        elif size_rw > 0:
+            disk_usage = size_rw
+
+        return jsonify({
+            'ram': memory_usage,
+            'ram_limit': memory_limit,
+            'disk': disk_usage,
+            'status': 'success'
+        }), 200
+
+    except docker.errors.NotFound:
+        return jsonify({"error": f"Container {container_name} not found"}), 404
+    except Exception as e:
+        current_app.logger.error(f"Error getting stats for {server_name}:{container_name}: {e}")
+        return jsonify({"error": str(e)}), 500

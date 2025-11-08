@@ -14,7 +14,7 @@ export class TableRenderer {
     this.body.innerHTML = '';
 
     if (!containers.length) {
-      this.body.innerHTML = `<tr><td colspan="9" class="text-center py-8 text-gray-500">No containers found matching your criteria.</td></tr>`;
+      this.body.innerHTML = `<tr><td colspan="11" class="text-center py-8 text-gray-500">No containers found matching your criteria.</td></tr>`;
       return;
     }
 
@@ -56,6 +56,14 @@ export class TableRenderer {
     const tagsCell = clone.querySelector('[data-content="tags"]');
     tagsCell.classList.add('table-cell-tags');
     CellRenderer.renderTags(container, tagsCell);
+
+    const ramCell = clone.querySelector('[data-content="ram"]');
+    ramCell.classList.add('table-cell-ram');
+    CellRenderer.renderRam(container, ramCell);
+
+    const diskCell = clone.querySelector('[data-content="disk"]');
+    diskCell.classList.add('table-cell-disk');
+    CellRenderer.renderDisk(container, diskCell);
 
     const statusCell = clone.querySelector('[data-content="status"]');
     statusCell.classList.add('table-cell-status');
