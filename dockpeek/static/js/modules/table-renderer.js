@@ -2,6 +2,7 @@ import * as CellRenderer from './cell-renderer.js';
 import { renderStatus } from './status-renderer.js';
 import { updateColumnVisibility, updateFirstAndLastVisibleColumns } from './column-visibility.js';
 import { updateTableOrder } from './column-order.js';
+import { registerUsageCells, requestPendingUsage } from './container-usage.js';
 
 
 export class TableRenderer {
@@ -14,7 +15,7 @@ export class TableRenderer {
     this.body.innerHTML = '';
 
     if (!containers.length) {
-      this.body.innerHTML = `<tr><td colspan="9" class="text-center py-8 text-gray-500">No containers found matching your criteria.</td></tr>`;
+      this.body.innerHTML = `<tr><td colspan="11" class="text-center py-8 text-gray-500">No containers found matching your criteria.</td></tr>`;
       return;
     }
 
@@ -32,10 +33,13 @@ export class TableRenderer {
     updateTableOrder();
     updateColumnVisibility();
     updateFirstAndLastVisibleColumns();
+    requestPendingUsage();
   }
 
   _renderRow(container, hasAnyTraefikRoutes) {
     const clone = this.template.content.cloneNode(true);
+
+    const rowElement = clone.querySelector('tr');
 
     const nameCell = clone.querySelector('[data-content="name"]');
     nameCell.classList.add('table-cell-name');
@@ -66,6 +70,20 @@ export class TableRenderer {
     const logsCell = clone.querySelector('[data-content="logs"]');
     logsCell.classList.add('table-cell-logs');
     CellRenderer.renderLogs(container, logsCell);
+
+    if (rowElement) {
+      const ramCell = rowElement.querySelector('[data-content="ram"]');
+      if (ramCell) {
+        ramCell.classList.add('table-cell-ram');
+      }
+
+      const diskCell = rowElement.querySelector('[data-content="disk"]');
+      if (diskCell) {
+        diskCell.classList.add('table-cell-disk');
+      }
+
+      registerUsageCells(rowElement, container);
+    }
 
     const portsCell = clone.querySelector('[data-content="ports"]');
     portsCell.classList.add('table-cell-ports');

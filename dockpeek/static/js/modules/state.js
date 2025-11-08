@@ -1,3 +1,5 @@
+export const DEFAULT_COLUMN_ORDER = ['name', 'stack', 'server', 'ports', 'traefik', 'image', 'tags', 'ram', 'disk', 'logs', 'status'];
+
 export const state = {
   allContainersData: [],
   allServersData: [],
@@ -15,7 +17,7 @@ export const state = {
   isDataLoaded: false,
   isCheckingForUpdates: false,
   updateCheckController: null,
-  columnOrder: ['name', 'stack', 'server', 'ports', 'traefik', 'image', 'tags', 'logs', 'status'],
+  columnOrder: [...DEFAULT_COLUMN_ORDER],
   columnVisibility: {
     name: true,
     server: true,
@@ -25,6 +27,8 @@ export const state = {
     status: true,
     ports: true,
     traefik: true,
+    ram: true,
+    disk: true,
     logs: true
   }
 };

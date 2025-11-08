@@ -4,7 +4,7 @@ import { toggleThemeMenu, setTheme } from './ui-utils.js';
 import { updateColumnVisibility } from './column-visibility.js';
 import * as ColumnOrder from './column-order.js';
 import { handlePruneImages, initPruneInfo } from './prune.js';
-import { state } from './state.js';
+import { state, DEFAULT_COLUMN_ORDER } from './state.js';
 import { logsViewer } from './logs-viewer.js';
 
 
@@ -155,7 +155,7 @@ export function initEventListeners() {
         }
       });
 
-      state.columnOrder.splice(0, state.columnOrder.length, 'name', 'stack', 'server', 'ports', 'traefik', 'image', 'tags', 'logs', 'status');
+      state.columnOrder.splice(0, state.columnOrder.length, ...DEFAULT_COLUMN_ORDER);
       ColumnOrder.reorderMenuItems()
       ColumnOrder.save()
       ColumnOrder.updateTableOrder()

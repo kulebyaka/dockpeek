@@ -526,6 +526,9 @@
   .text-left {
     text-align: left;
   }
+  .text-right {
+    text-align: right;
+  }
   .align-middle {
     vertical-align: middle;
   }
@@ -1676,6 +1679,41 @@ body.dark-mode .table-cell-stack a:hover {
 }
 .table-cell-status span {
   white-space: nowrap;
+}
+.table-cell-ram, .table-cell-disk {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.usage-value {
+  font-weight: 500;
+}
+.usage-unavailable {
+  color: #9ca3af;
+  text-transform: lowercase;
+}
+body.dark-mode .usage-unavailable {
+  color: #6b7280;
+}
+.usage-placeholder {
+  display: inline-block;
+  width: 4rem;
+  height: 0.75rem;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, rgba(209, 213, 219, 0.6) 25%, rgba(156, 163, 175, 0.85) 50%, rgba(209, 213, 219, 0.6) 75%);
+  background-size: 200% 100%;
+  animation: usage-placeholder-pulse 1.4s ease-in-out infinite;
+}
+body.dark-mode .usage-placeholder {
+  background: linear-gradient(90deg, rgba(75, 85, 99, 0.6) 25%, rgba(107, 114, 128, 0.85) 50%, rgba(75, 85, 99, 0.6) 75%);
+}
+@keyframes usage-placeholder-pulse {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
 }
 .table-cell-status, .server-column {
   cursor: default;
