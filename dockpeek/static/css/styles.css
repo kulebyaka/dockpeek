@@ -550,6 +550,35 @@ body.dark-mode .table-cell-stack a:hover {
   white-space: nowrap;
 }
 
+.table-total-row td {
+  font-weight: 600;
+  border-top: 2px solid #d1d5db;
+  background-color: #f9fafb;
+}
+
+body.dark-mode .table-total-row td {
+  border-top-color: #374151;
+  background-color: #1f2937;
+}
+
+.table-total-label {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #1f2937;
+}
+
+body.dark-mode .table-total-label {
+  color: #e5e7eb;
+}
+
+.table-total-value {
+  font-variant-numeric: tabular-nums;
+}
+
+.table-total-row .usage-value {
+  font-weight: 600;
+}
+
 .usage-value {
   font-weight: 500;
 }

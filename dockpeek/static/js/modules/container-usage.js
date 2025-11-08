@@ -8,6 +8,16 @@ let fetchInProgress = false;
 let fetchScheduled = false;
 let fetchTimeoutId = null;
 
+const defaultTotalsConfig = {
+  row: null,
+  ramCell: null,
+  diskCell: null,
+  getContainers: null
+};
+
+let totalsConfig = { ...defaultTotalsConfig };
+let totalsUpdateScheduled = false;
+
 function createUsageKey(server, identifier) {
   return `${server}:${identifier}`;
 }
@@ -133,7 +143,11 @@ function updateStateUsage(key, usage) {
     match.memory_limit = typeof usage.memory_limit === 'number' ? usage.memory_limit : null;
     match.disk_usage = typeof usage.disk_usage === 'number' ? usage.disk_usage : null;
     match.disk_total = typeof usage.disk_total === 'number' ? usage.disk_total : null;
+    match.memory_error = usage.memory_error || usage.error || null;
+    match.disk_error = usage.disk_error || usage.error || null;
   }
+
+  scheduleTotalsUpdate();
 }
 
 function buildPayload(keys) {
@@ -194,6 +208,7 @@ async function executeFetch() {
       updateStateUsage(key, usage);
       updateCellsForKey(key, usage);
     });
+    scheduleTotalsUpdate();
   } catch (error) {
     console.error('Error fetching container usage:', error);
     keysToFetch.forEach(key => {
@@ -209,6 +224,7 @@ async function executeFetch() {
       usageCache.set(key, fallback);
       updateCellsForKey(key, fallback);
     });
+    scheduleTotalsUpdate();
   } finally {
     fetchInProgress = false;
     if (pendingKeys.size > 0) {
@@ -320,4 +336,145 @@ export function resetUsageCache() {
   }
   fetchScheduled = false;
   fetchInProgress = false;
+}
+
+function computeTotals(containers) {
+  const totals = {
+    containerCount: containers.length,
+    ram: { total: 0, count: 0, expected: 0, errors: 0 },
+    disk: { total: 0, count: 0, expected: 0, errors: 0 }
+  };
+
+  containers.forEach(container => {
+    if (!container || container.is_swarm) {
+      return;
+    }
+
+    totals.ram.expected += 1;
+    totals.disk.expected += 1;
+
+    const memoryValue = typeof container.memory_usage === 'number' ? container.memory_usage : null;
+    const diskValue = typeof container.disk_total === 'number'
+      ? container.disk_total
+      : (typeof container.disk_usage === 'number' ? container.disk_usage : null);
+
+    if (memoryValue !== null) {
+      totals.ram.total += memoryValue;
+      totals.ram.count += 1;
+    } else if (container.memory_error) {
+      totals.ram.errors += 1;
+    }
+
+    if (diskValue !== null) {
+      totals.disk.total += diskValue;
+      totals.disk.count += 1;
+    } else if (container.disk_error) {
+      totals.disk.errors += 1;
+    }
+  });
+
+  return totals;
+}
+
+function setTotalsCellUnavailable(cell, message) {
+  if (!cell) return;
+  cell.innerHTML = '<span class="usage-unavailable">n/a</span>';
+  if (message) {
+    cell.setAttribute('data-tooltip', message);
+  } else {
+    cell.removeAttribute('data-tooltip');
+  }
+}
+
+function setTotalsCellLoading(cell, message) {
+  if (!cell) return;
+  cell.innerHTML = '<span class="usage-placeholder"></span>';
+  if (message) {
+    cell.setAttribute('data-tooltip', message);
+  } else {
+    cell.removeAttribute('data-tooltip');
+  }
+}
+
+function setTotalsCellValue(cell, bytes, count, expected, label) {
+  if (!cell) return;
+  const formatted = formatBytes(bytes) || `${bytes} B`;
+  const tooltipParts = [`${label}: ${formatted}`];
+  if (expected > 0 && count < expected) {
+    tooltipParts.push(`Includes ${count} of ${expected} containers`);
+  }
+  cell.innerHTML = `<span class="usage-value table-total-value">${formatted}</span>`;
+  cell.setAttribute('data-tooltip', tooltipParts.join(' • '));
+}
+
+function updateTotalsDisplay() {
+  if (!totalsConfig.row || typeof totalsConfig.getContainers !== 'function') {
+    return;
+  }
+
+  const containers = totalsConfig.getContainers() || [];
+  const { ram, disk, containerCount } = computeTotals(containers);
+
+  const ramCell = totalsConfig.ramCell;
+  const diskCell = totalsConfig.diskCell;
+
+  if (containerCount === 0) {
+    setTotalsCellValue(ramCell, 0, 0, 0, 'RAM');
+    setTotalsCellValue(diskCell, 0, 0, 0, 'Disk');
+    return;
+  }
+
+  if (ram.expected === 0) {
+    setTotalsCellUnavailable(ramCell, 'RAM totals are not available for the selected containers');
+  } else if (ram.count === 0) {
+    if (ram.errors === ram.expected) {
+      setTotalsCellUnavailable(ramCell, 'RAM totals could not be determined');
+    } else {
+      setTotalsCellLoading(ramCell, 'Loading RAM totals…');
+    }
+  } else {
+    setTotalsCellValue(ramCell, ram.total, ram.count, ram.expected, 'RAM');
+  }
+
+  if (disk.expected === 0) {
+    setTotalsCellUnavailable(diskCell, 'Disk totals are not available for the selected containers');
+  } else if (disk.count === 0) {
+    if (disk.errors === disk.expected) {
+      setTotalsCellUnavailable(diskCell, 'Disk totals could not be determined');
+    } else {
+      setTotalsCellLoading(diskCell, 'Loading disk totals…');
+    }
+  } else {
+    setTotalsCellValue(diskCell, disk.total, disk.count, disk.expected, 'Disk');
+  }
+}
+
+function scheduleTotalsUpdate() {
+  if (!totalsConfig.row || totalsUpdateScheduled) {
+    return;
+  }
+
+  totalsUpdateScheduled = true;
+  const scheduler = window.requestAnimationFrame || (callback => setTimeout(callback, 16));
+  scheduler(() => {
+    totalsUpdateScheduled = false;
+    updateTotalsDisplay();
+  });
+}
+
+export function registerTotalsRow(rowElement, getContainers) {
+  totalsConfig = {
+    row: rowElement,
+    ramCell: rowElement?.querySelector('[data-total="ram"]') || null,
+    diskCell: rowElement?.querySelector('[data-total="disk"]') || null,
+    getContainers: typeof getContainers === 'function' ? getContainers : null
+  };
+
+  totalsUpdateScheduled = false;
+  updateTotalsDisplay();
+}
+
+export function clearTotalsRow() {
+  totalsConfig = { ...defaultTotalsConfig };
+  totalsUpdateScheduled = false;
 }

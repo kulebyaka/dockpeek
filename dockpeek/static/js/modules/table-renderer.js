@@ -2,7 +2,7 @@ import * as CellRenderer from './cell-renderer.js';
 import { renderStatus } from './status-renderer.js';
 import { updateColumnVisibility, updateFirstAndLastVisibleColumns } from './column-visibility.js';
 import { updateTableOrder } from './column-order.js';
-import { registerUsageCells, requestPendingUsage } from './container-usage.js';
+import { registerUsageCells, requestPendingUsage, registerTotalsRow, clearTotalsRow } from './container-usage.js';
 
 
 export class TableRenderer {
@@ -12,6 +12,7 @@ export class TableRenderer {
   }
 
   render(containers) {
+    clearTotalsRow();
     this.body.innerHTML = '';
 
     if (!containers.length) {
@@ -29,7 +30,11 @@ export class TableRenderer {
       fragment.appendChild(row);
     }
 
+    const totalsRow = this._createTotalsRow();
+    fragment.appendChild(totalsRow);
+
     this.body.appendChild(fragment);
+    registerTotalsRow(totalsRow, () => containers);
     updateTableOrder();
     updateColumnVisibility();
     updateFirstAndLastVisibleColumns();
@@ -94,5 +99,59 @@ export class TableRenderer {
     CellRenderer.renderTraefik(container, traefikCell, hasAnyTraefikRoutes);
 
     return clone;
+  }
+
+  _createTotalsRow() {
+    const row = document.createElement('tr');
+    row.classList.add('table-total-row');
+    row.setAttribute('data-row-type', 'total');
+
+    const cells = [
+      this._buildTotalsCell('name', {
+        text: 'TOTAL',
+        classes: ['px-4', 'table-total-label']
+      }),
+      this._buildTotalsCell('stack', { classes: ['px-4'] }),
+      this._buildTotalsCell('server', { classes: ['px-4'], extraClasses: ['server-column'] }),
+      this._buildTotalsCell('ports', { classes: ['px-4'] }),
+      this._buildTotalsCell('traefik', { classes: ['px-4'], extraClasses: ['traefik-column'] }),
+      this._buildTotalsCell('image', { classes: ['px-4'] }),
+      this._buildTotalsCell('tags', { classes: ['px-4'] }),
+      this._buildTotalsCell('ram', { classes: ['px-4', 'text-right'], dataset: { total: 'ram' } }),
+      this._buildTotalsCell('disk', { classes: ['px-4', 'text-right'], dataset: { total: 'disk' } }),
+      this._buildTotalsCell('status', { classes: ['px-4'] }),
+      this._buildTotalsCell('logs', { classes: ['px-2'] })
+    ];
+
+    cells.forEach(cell => row.appendChild(cell));
+    return row;
+  }
+
+  _buildTotalsCell(columnName, { text = '', classes = [], dataset = {}, extraClasses = [] } = {}) {
+    const cell = document.createElement('td');
+    cell.dataset.content = columnName;
+    cell.classList.add('py-3', 'table-total-cell', `table-cell-${columnName}`);
+
+    if (classes.length) {
+      cell.classList.add(...classes);
+    }
+
+    if (extraClasses.length) {
+      cell.classList.add(...extraClasses);
+    }
+
+    if (!classes.includes('px-2') && !classes.includes('px-4')) {
+      cell.classList.add('px-4');
+    }
+
+    Object.entries(dataset).forEach(([key, value]) => {
+      cell.dataset[key] = value;
+    });
+
+    if (text) {
+      cell.textContent = text;
+    }
+
+    return cell;
   }
 }
