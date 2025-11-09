@@ -53,3 +53,7 @@ docker-compose-dev*.yml
 # Cache
 .cache/
 .npm/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
