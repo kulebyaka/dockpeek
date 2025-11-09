@@ -287,6 +287,76 @@ def host_stats():
         return jsonify({"error": str(e)}), 500
 
 
+def _get_system_memory_from_meminfo():
+    """
+    Read actual system memory from /proc/meminfo.
+
+    This is used as a fallback when Docker's cgroup memory limit is unreasonably
+    high, which happens in nested virtualization scenarios (Docker in LXC).
+
+    Returns:
+        int: Total system memory in bytes, or None if unable to read
+    """
+    try:
+        with open('/proc/meminfo', 'r') as f:
+            for line in f:
+                if line.startswith('MemTotal:'):
+                    # Parse "MemTotal:        2000000 kB"
+                    parts = line.split()
+                    if len(parts) >= 2:
+                        kb_value = int(parts[1])
+                        return kb_value * 1024  # Convert KB to bytes
+    except (OSError, IOError, ValueError) as e:
+        current_app.logger.warning(f"Failed to read system memory from /proc/meminfo: {e}")
+    return None
+
+
+def _get_actual_memory_limit(docker_reported_limit):
+    """
+    Get the actual memory limit, accounting for nested virtualization issues.
+
+    When Docker runs inside an LXC container, the cgroup memory limit
+    (/sys/fs/cgroup/memory/memory.limit_in_bytes) returns the host machine's
+    total memory or a very high default value (like 9223372036854771712 bytes ≈ 8 exabytes),
+    not the LXC container's actual limit.
+
+    Args:
+        docker_reported_limit: The memory limit reported by Docker's stats API
+
+    Returns:
+        int: The actual memory limit in bytes, or None if unable to determine
+    """
+    # Threshold: 100GB
+    # If the reported limit is above this, it's likely incorrect due to LXC/nested virtualization
+    REASONABLE_LIMIT_THRESHOLD = 100 * 1024 * 1024 * 1024  # 100GB in bytes
+
+    if docker_reported_limit is None:
+        # No limit reported, try to read system memory
+        return _get_system_memory_from_meminfo()
+
+    if docker_reported_limit > REASONABLE_LIMIT_THRESHOLD:
+        # Limit is unreasonably high - likely reading host memory instead of container limit
+        # Fall back to system memory from /proc/meminfo
+        system_memory = _get_system_memory_from_meminfo()
+        if system_memory is not None:
+            current_app.logger.debug(
+                f"Docker reported memory limit ({docker_reported_limit} bytes) exceeds threshold "
+                f"({REASONABLE_LIMIT_THRESHOLD} bytes). Using system memory from /proc/meminfo "
+                f"({system_memory} bytes) instead. This is likely Docker running in LXC/nested virtualization."
+            )
+            return system_memory
+        else:
+            # Couldn't read system memory, return the Docker value anyway
+            current_app.logger.warning(
+                f"Docker reported unreasonably high memory limit ({docker_reported_limit} bytes) "
+                f"but failed to read system memory from /proc/meminfo. Using Docker value anyway."
+            )
+            return docker_reported_limit
+
+    # Limit seems reasonable, use it as-is
+    return docker_reported_limit
+
+
 @contextmanager
 def _temporary_api_timeout(client, minimum_timeout):
     api = getattr(client, 'api', None)
@@ -361,7 +431,10 @@ def _collect_container_usage(client, container_id=None, container_name=None):
             if usage is not None and cache_value is not None:
                 usage = max(0, usage - cache_value)
             result["memory_usage"] = usage
-            result["memory_limit"] = memory_stats.get('limit')
+
+            # Get memory limit with LXC/nested virtualization fallback
+            docker_reported_limit = memory_stats.get('limit')
+            result["memory_limit"] = _get_actual_memory_limit(docker_reported_limit)
         except Exception as exc:  # pragma: no cover - depends on Docker engine
             result["memory_error"] = str(exc)
 
