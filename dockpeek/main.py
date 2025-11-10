@@ -51,6 +51,42 @@ def get_registry_templates():
     from flask import current_app, jsonify
     return jsonify(current_app.config.get("CUSTOM_REGISTRY_TEMPLATES", {}))
 
+def _read_meminfo():
+    """Read memory info directly from /proc/meminfo to avoid virtualization issues."""
+    try:
+        with open('/proc/meminfo', 'r') as f:
+            meminfo = {}
+            for line in f:
+                parts = line.split()
+                if len(parts) >= 2:
+                    key = parts[0].rstrip(':')
+                    value = int(parts[1]) * 1024  # Convert KB to bytes
+                    meminfo[key] = value
+
+            # Calculate memory stats
+            total = meminfo.get('MemTotal', 0)
+            available = meminfo.get('MemAvailable', 0)
+            used = total - available
+            percent = (used / total * 100) if total > 0 else 0
+
+            return {
+                'total': total,
+                'used': used,
+                'available': available,
+                'percent': percent
+            }
+    except Exception as e:
+        # Fallback to psutil if /proc/meminfo is not available
+        current_app.logger.warning(f"Failed to read /proc/meminfo, falling back to psutil: {e}")
+        memory = psutil.virtual_memory()
+        return {
+            'total': memory.total,
+            'used': memory.used,
+            'available': memory.available,
+            'percent': memory.percent
+        }
+
+
 @main_bp.route("/host-stats")
 @conditional_login_required
 def host_stats():
@@ -59,8 +95,8 @@ def host_stats():
         # CPU usage percentage
         cpu_percent = psutil.cpu_percent(interval=0.1)
 
-        # Memory usage
-        memory = psutil.virtual_memory()
+        # Memory usage - read directly from /proc/meminfo to avoid virtualization issues
+        memory = _read_meminfo()
 
         # Disk usage for root partition
         disk = psutil.disk_usage('/')
@@ -70,9 +106,9 @@ def host_stats():
                 "percent": round(cpu_percent, 1)
             },
             "memory": {
-                "total": memory.total,
-                "used": memory.used,
-                "percent": round(memory.percent, 1)
+                "total": memory['total'],
+                "used": memory['used'],
+                "percent": round(memory['percent'], 1)
             },
             "disk": {
                 "total": disk.total,
